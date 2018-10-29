@@ -1,4 +1,7 @@
 const axios = require('axios')
+const axiosRetry = require('axios-retry');
+ 
+axiosRetry(axios, { retries: 3 });
 
 //mobile user-agent header for checkout.json endpoint
 const options = {
@@ -7,9 +10,14 @@ const options = {
     }
 }
 
-//fake checkout data to send to supreme
-const getCheckoutData = (id) => {
-    const cooksub = encodeURIComponent(`{"${id}":1}`);
+const getCheckoutData = (largestSize, amount) => {
+    let items = {};
+    for(let i = largestSize; i < largestSize + amount; i++) {
+        items[i] = 1;
+    }
+
+    const cooksub = encodeURIComponent(JSON.stringify(items).replace(/'/g, '"'));
+
     return {
         'store_credit_id': '',
         'from_mobile': '1',
@@ -32,54 +40,54 @@ const getCheckoutData = (id) => {
     }
 }
 
-let largestID = -1
-let largestSizeID = -1;
-
 //get the last item id from latest drop (largest id)
-const setLargestID = () => {
-    if(largestID == -1) {
-        return axios.get('https://supremenewyork.com/mobile_stock.json').then((res) => {
-            const newProducts = res.data['products_and_categories']['new'];
-            for(let product of newProducts) {
-                if(product.id > largestID)
-                    largestID = product.id;
-            }
-            console.log(`Largest ID found ${largestID}`)
-        })
+const getLargestItemID = async () => {
+    const res = await axios.get('https://supremenewyork.com/mobile_stock.json');
+    const data = await res.data;
+    const newProducts = data['products_and_categories']['new'];
+
+    let largestID = -1;
+    for(let product of newProducts) {
+        if(product.id > largestID)
+            largestID = product.id;
     }
+    
+    console.log(`Largest ID: ${largestID}`);
+    return largestID;
 }
 
 //get biggest size id
-const setLargestSizeID = () => {
-    if(largestSizeID == -1) {
-        return axios.get(`https://supremenewyork.com/shop/${largestID}.json`).then((res) => {
-            const newProducts = res.data;
-            const lastProduct = newProducts.styles[newProducts.styles.length - 1];
-            const lastProductID = lastProduct.sizes[lastProduct.sizes.length - 1].id;
-            largestSizeID = lastProductID;
-            console.log(`Largest Size ID found ${lastProductID}`)
-        })
-    }
+const getLargestSizeID = async (largestItemID) => {
+    const res = await axios.get(`https://supremenewyork.com/shop/${largestItemID}.json`);
+    const data = await res.data;
+
+    const lastProduct = data.styles[data.styles.length - 1]
+    const lastProductID = lastProduct.sizes[lastProduct.sizes.length - 1].id;
+    
+    console.log(`Largest Size ID Found: ${lastProductID}`);
+    return lastProductID;
 }
 
-//checkout with the id passed.
-const postWithID = (id) => {
-    axios.post('https://www.supremenewyork.com/checkout', getCheckoutData(id), options).then((res) => {
-        let data = res.data;
-        //if out of stock - item exists and variant is found
-        if(data.status == 'outOfStock') {
-            console.log(`Found item ${data.mp[0]['Product Name']} - ${data.mp[0]['Product Color']} - ${data.mp[0]['Product Size']} - ID:${id}`)
+const fetchVariants = async (largestSizeID, amount) => {
+    const res = await axios.post('https://www.supremenewyork.com/checkout', getCheckoutData(largestSizeID, amount), options);
+    const data = await res.data;
+
+    let variants = [];
+    if(data.status == 'outOfStock') {
+        for(let variant of data.mp) {
+            variants.push({
+                'Product Name': variant['Product Name'],
+                'Product Color': variant['Product Color'],
+                'Product Size': variant['Product Size'],
+            })
         }
-    }).catch(err => console.log(`${largestSizeID} not an item.`));
+    }
+    return variants;
 }
 
-//check delay in ms
-let delay = 500;
-
-setLargestID().then(() => {
-    setLargestSizeID().then(() => {
-        setInterval(() => {
-            postWithID(largestSizeID++)
-        }, delay)
-    })
-})
+(async () => {
+    const largestItemID = await getLargestItemID();
+    const largestSizeID = await getLargestSizeID(largestItemID);
+    const variants = await fetchVariants(largestSizeID, 30);
+    console.log(variants.length === 0 ? 'No new variants found.' : variants);
+})();
