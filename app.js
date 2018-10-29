@@ -6,7 +6,7 @@ axiosRetry(axios, { retries: 3 });
 //mobile user-agent header for checkout.json endpoint
 const options = {
     headers: {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 10_3 like Mac OS X) AppleWebKit/603.1.23 (KHTML, like Gecko) Version/10.0 Mobile/14E5239e Safari/602.1"
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_3 like Mac OS X) AppleWebKit/603.1.23 (KHTML, like Gecko) Version/10.0 Mobile/14E5239e Safari/602.1'
     }
 }
 
@@ -74,11 +74,12 @@ const fetchVariants = async (largestSizeID, amount) => {
 
     let variants = [];
     if(data.status == 'outOfStock') {
-        for(let variant of data.mp) {
+        for(let variant in data.mp) {
             variants.push({
-                'Product Name': variant['Product Name'],
-                'Product Color': variant['Product Color'],
-                'Product Size': variant['Product Size'],
+                'Product Name': data.mp[variant]['Product Name'],
+                'Product Color': data.mp[variant]['Product Color'],
+                'Product Size': data.mp[variant]['Product Size'],
+                'Product ID': parseInt(largestSizeID) + parseInt(variant)
             })
         }
     }
