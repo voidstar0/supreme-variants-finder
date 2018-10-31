@@ -12,7 +12,7 @@ const options = {
 
 const getCheckoutData = (largestSize, amount) => {
     let items = {};
-    for(let i = largestSize; i < largestSize + amount; i++) {
+    for(let i = largestSize + 1; i < largestSize + amount; i++) {
         items[i] = 1;
     }
 
@@ -46,11 +46,7 @@ const getLargestItemID = async () => {
     const data = await res.data;
     const newProducts = data['products_and_categories']['new'];
 
-    let largestID = -1;
-    for(let product of newProducts) {
-        if(product.id > largestID)
-            largestID = product.id;
-    }
+    const largestID = newProducts.map(p => p.id).reduce((a, b) => Math.max(a, b))
     
     console.log(`Largest ID: ${largestID}`);
     return largestID;
@@ -69,21 +65,25 @@ const getLargestSizeID = async (largestItemID) => {
 }
 
 const fetchVariants = async (largestSizeID, amount) => {
-    const res = await axios.post('https://www.supremenewyork.com/checkout', getCheckoutData(largestSizeID, amount), options);
-    const data = await res.data;
+    try {
+        const res = await axios.post('https://www.supremenewyork.com/checkout.json', getCheckoutData(largestSizeID, amount), options);
+        const data = await res.data;
 
-    let variants = [];
-    if(data.status == 'outOfStock') {
-        for(let variant in data.mp) {
-            variants.push({
-                'Product Name': data.mp[variant]['Product Name'],
-                'Product Color': data.mp[variant]['Product Color'],
-                'Product Size': data.mp[variant]['Product Size'],
-                'Product ID': parseInt(largestSizeID) + parseInt(variant)
-            })
+        let variants = [];
+        if(data.status == 'outOfStock') {
+            for(let variant in data.mp) {
+                variants.push({
+                    'Product Name': data.mp[variant]['Product Name'],
+                    'Product Color': data.mp[variant]['Product Color'],
+                    'Product Size': data.mp[variant]['Product Size'],
+                    'Product ID': parseInt(largestSizeID) + parseInt(variant)
+                })
+            }
         }
+        return variants;
+    } catch(err) {
+        return [];
     }
-    return variants;
 }
 
 (async () => {
