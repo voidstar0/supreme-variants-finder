@@ -4,11 +4,12 @@
   "description": "Find Supreme variants before drop.",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "us": "node app.js us",
+    "eu": "node app.js eu"
   },
-  "keywords": [],
+  "keywords": ["Supreme Variants Finder", "Supreme", "Variants"],
   "author": "veritas",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "axios": "^0.18.0",
     "axios-retry": "^3.1.1"
